@@ -1,0 +1,22 @@
+name: Build APK
+on:
+  push:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: unzip -o SophosManager.zip
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build
+        working-directory: SophosManager
+        run: chmod +x gradlew && ./gradlew assembleRelease
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sophos-manager-apk
+          path: SophosManager/app/build/outputs/apk/release/*.apk
