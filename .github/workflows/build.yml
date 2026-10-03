@@ -8,6 +8,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: unzip -o SophosManager.zip
+      - run: unzip -o SophosManager.V2.zip
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
