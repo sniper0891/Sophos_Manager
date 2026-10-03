@@ -7,8 +7,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: unzip -o SophosManager.zip
-      - run: unzip -o SophosManager.V2.zip
+      - name: Dézipper la dernière version
+        run: |
+          ZIP=$(ls SophosManager.V*.zip 2>/dev/null | sort -V | tail -1)
+          if [ -z "$ZIP" ]; then echo "Aucun fichier SophosManager.V*.zip trouvé"; exit 1; fi
+          echo "Zip utilisé : $ZIP"
+          rm -rf SophosManager
+          unzip -o -q "$ZIP"
+          VERSION=$(echo "$ZIP" | sed -E 's/.*\.(V[0-9]+)\.zip/\1/')
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Version : $VERSION"
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -19,5 +27,5 @@ jobs:
         run: chmod +x gradlew && ./gradlew assembleRelease
       - uses: actions/upload-artifact@v4
         with:
-          name: sophos-manager-apk
+          name: sophos-manager-${{ env.VERSION }}
           path: SophosManager/app/build/outputs/apk/release/*.apk
