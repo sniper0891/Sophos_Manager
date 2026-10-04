@@ -3,20 +3,33 @@ on:
   push:
   workflow_dispatch:
 jobs:
-  build:
+  list:
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
-      - name: Dézipper la dernière version
+      - id: set
         run: |
-          ZIP=$(ls SophosManager.V*.zip 2>/dev/null | sort -V | tail -1)
-          if [ -z "$ZIP" ]; then echo "Aucun fichier SophosManager.V*.zip trouvé"; exit 1; fi
-          echo "Zip utilisé : $ZIP"
-          rm -rf SophosManager
-          unzip -o -q "$ZIP"
-          VERSION=$(echo "$ZIP" | sed -E 's/.*\.(V[0-9]+)\.zip/\1/')
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "Version : $VERSION"
+          json=$(for f in SophosManager*.zip; do
+            [ -f "$f" ] || continue
+            v=$(echo "$f" | sed -nE 's/.*\.(V[0-9]+)\.zip/\1/p')
+            [ -z "$v" ] && v=V1
+            echo "{\"zip\":\"$f\",\"version\":\"$v\"}"
+          done | paste -sd, -)
+          echo "Versions trouvées : $json"
+          echo "matrix={\"include\":[$json]}" >> $GITHUB_OUTPUT
+
+  build:
+    needs: list
+    runs-on: ubuntu-latest
+    name: build (${{ matrix.version }})
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.list.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: rm -rf SophosManager && unzip -o -q "${{ matrix.zip }}"
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -27,5 +40,5 @@ jobs:
         run: chmod +x gradlew && ./gradlew assembleRelease
       - uses: actions/upload-artifact@v4
         with:
-          name: sophos-manager-${{ env.VERSION }}
+          name: sophos-manager-${{ matrix.version }}
           path: SophosManager/app/build/outputs/apk/release/*.apk
